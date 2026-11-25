@@ -1,0 +1,16 @@
+# 依赖
+node_modules/
+
+# 构建 / 下载产物
+*.zip
+_rebuild/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 本地调试与凭据（绝不提交）
+*.log
+.gh_token
+token.txt
