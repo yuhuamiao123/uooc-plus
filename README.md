@@ -1,8 +1,14 @@
 # UOOC 助手 Plus
 
-优课联盟（[uooc.net.cn](https://www.uooc.net.cn)）在线课程辅助扩展。
+> ### ⚠️ 本项目是**改造版**，不是原创
+>
+> 代码主体来自 **[UOOC-Assistant-Enhanced](https://github.com/2026534639-cyber/UOOC-Assistant-Enhanced) 3.3.0**，原作者 **[理不尽](https://github.com/2026534639-cyber)**，以 MIT 协议发布。
+>
+> 本项目的改动集中在新版学习页的连播适配层和一批稳定性修复，逐条列在 [CHANGELOG.md](CHANGELOG.md)；原版的播放控制、AI 答题、讨论、进度统计等模块基本未动。
+>
+> 保留原作者版权声明是 MIT 协议的要求，也是基本的诚实。
 
-在 [UOOC-Assistant-Enhanced](https://github.com/2026534639-cyber/UOOC-Assistant-Enhanced) 3.3.0 基础上，重写了 **2026 版新版学习页**的自动连播，并修掉了一批"挂机时静默卡死"的问题。
+优课联盟（[uooc.net.cn](https://www.uooc.net.cn)）在线课程辅助扩展。适配 **2026 版新版学习页**（三层目录 / hash 路由），并修掉了一批"挂机时静默卡死"的问题。
 
 > ⚠️ **使用前必读**
 > 本项目会自动化完成视频观看。这**违反优课的用户协议**，学校层面也可能认定为学术不端。
