@@ -57,7 +57,7 @@
         console.log('[UOOC助手] ' + msg);
     }
 
-    showDebugBanner('[UOOC助手] v3.4.6 已加载 — 查看控制台获取详情');
+    showDebugBanner('[UOOC助手] v3.4.7 已加载 — 查看控制台获取详情');
 
     // ==================== LLM配置管理模块 ====================
     const LLMConfig = {
@@ -1828,6 +1828,8 @@
             // 结束时目录已经没有当前项了 —— 这正是"播完不跳"的根因。
             window.__uoocEndedItem = document.querySelector('[class*="resourcelist_item"].active') ||
                                      document.querySelector('[class*="resourcelist_item"][class*="active"]');
+            // 记进"已看过"名单（新版回补靠它判断哪些还没补）
+            if (window.__uoocEndedItem) markSeen(window.__uoocEndedItem);
             console.log('[UOOC助手] 视频播放结束，等系统确认打勾后再连播');
             waitCurrentTaskDone(function() { findNextVideo(); });
         };
@@ -3899,13 +3901,28 @@
         if (!title) return false;
 
         var titleText = (title.innerText || '').trim();
+        var key = title.id || ('d' + depth + '_' + titleText);
+        if (__openedSections[key]) return false;
+
+        // 测验/考试是闯关门槛，不进去做完，后面的节点根本点不开。
+        // 作业/讨论/文档点开会把学习页整个换掉，只能跳过。
+        if (/测验|考试/.test(titleText)) {
+            __openedSections[key] = true;
+            __newAdvanceTries++;
+            console.log('[UOOC助手] 连播(新版): 进入测验「' + titleText + '」并自动作答');
+            window.__uoocNavPending = true;
+            window.__uoocNavPendingAt = Date.now();
+            window.__uoocSilentAnswer = true;
+            window.__uoocAnswerBusy = true;
+            try { title.click(); } catch (e) { }
+            setTimeout(function () { autoCompleteQuizFlow(8); }, 3000);
+            return true;
+        }
+
         if (isNonVideoTask(titleText)) {
             console.log('[UOOC助手] 连播(新版): 「' + titleText + '」不是视频任务，跳过');
             return false;
         }
-
-        var key = title.id || ('d' + depth + '_' + titleText);
-        if (__openedSections[key]) return false;
 
         var subUl = findChildUL(li);
         if (subUl) {
@@ -4117,6 +4134,9 @@
             }
         }
 
+        // 往后走到底了 → 回头扫前面有没有没看过的（闯关制：漏一节后面的就打不开）
+        if (reviseNewCourse()) return;
+
         __newAdvanceTries = 0;
         console.log('[UOOC助手] 连播(新版): 已经是最后一节了，这一轮结束');
     }
@@ -4165,6 +4185,78 @@
                 advanceNewCourse();
             } catch (e) { }
         }, 5000);
+    }
+
+    // ==================== 回补：往后走不动了，回头找前面漏掉的 ====================
+    // 优课是闯关制：某节没看完、或者某道题没过，后面的节点会点不开。
+    // 连播一路往后走到底时，先回头扫一遍目录，把"没打勾的视频"补上，
+    // 补完自然会接着往后走，不会就此停下。
+
+    var __uoocReviseTried = {};
+
+    function isVideoRow(node) {
+        return Boolean(node && node.querySelector('[class*="video"], .video-icon, span.icon-video'));
+    }
+
+    // 旧版页面的回补：靠 .complete 类判断是否已看完
+    function reviseOldVersion() {
+        var rows = Array.prototype.slice.call(document.querySelectorAll('.basic'));
+        if (!rows.length) return false;
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            if (r.classList.contains('complete')) continue;       // 已打勾
+            var ng = r.getAttribute('ng-click') || '';
+            if (ng.indexOf('goSource') < 0) continue;             // 不是任务行
+            if (!isVideoRow(r)) continue;                         // 只补视频，测验/作业不动
+            var label = (r.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 50);
+            if (__uoocReviseTried[label]) continue;               // 本次会话已补过
+            __uoocReviseTried[label] = 1;
+            console.log('[UOOC助手] 回补：后面没有了，回头补前面没看完的 → ' + label);
+            window.__uoocNavPending = false;
+            window.__uoocLastForwardClick = Date.now();
+            try { r.click(); } catch (e) { }
+            videoPulse();
+            return true;
+        }
+        return false;
+    }
+
+    // ---------- 新版页面的回补 ----------
+    // 新版拿不到统一的"已完成"标记，所以用本地记录：播放结束（ended）过才算看过。
+    var __uoocSeenKey = 'uooc_plus_seen_v1';
+
+    function loadSeenMap() {
+        try { return JSON.parse(localStorage.getItem(__uoocSeenKey) || '{}') || {}; }
+        catch (e) { return {}; }
+    }
+
+    function markSeen(item) {
+        try {
+            var label = newItemText(item);
+            if (!label) return;
+            var m = loadSeenMap();
+            m[label] = Date.now();
+            localStorage.setItem(__uoocSeenKey, JSON.stringify(m));
+        } catch (e) { }
+    }
+
+    function reviseNewCourse() {
+        if (!isNewCatalog()) return false;
+        var seen = loadSeenMap();
+        var items = itemsIn(document);   // 只扫当前 DOM 里已经渲染出来的节点
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            if (!newItemIsVideo(it)) continue;
+            var label = newItemText(it);
+            if (!label) continue;
+            if (seen[label]) continue;                 // 已经播完过
+            if (__openedSections['rev_' + label]) continue;
+            __openedSections['rev_' + label] = true;
+            console.log('[UOOC助手] 回补(新版)：找到没看过的 → ' + label);
+            clickNewItem(it, '回补');
+            return true;
+        }
+        return false;
     }
 
     function findNextVideo() {
@@ -4389,6 +4481,8 @@
                         stopDiscussSweep('后续没有更多讨论了，讨论清扫完成');
                         return;
                     }
+                    // 往后没有了 → 回头看前面有没有漏的（闯关制：漏一节后面的就打不开）
+                    if (reviseOldVersion()) return;
                     console.log('[UOOC助手] 后续没有可自动播放的视频，连播停止');
                 };
                 try {
@@ -4672,7 +4766,7 @@
         var rate = document.getElementById('rate');
         var pro = window.__uoocStallProbe;
         var out = {
-            '版本': '3.4.6-plus',
+            '版本': '3.4.7-plus',
             '地址': location.href,
             '视频元素': v ? '有' : '没有',
             'videojs': typeof window.videojs === 'function' ? '有' : '没有',
