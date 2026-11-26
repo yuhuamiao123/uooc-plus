@@ -57,7 +57,7 @@
         console.log('[UOOC助手] ' + msg);
     }
 
-    showDebugBanner('[UOOC助手] v3.4.7 已加载 — 查看控制台获取详情');
+    showDebugBanner('[UOOC助手] v3.4.8 已加载 — 查看控制台获取详情');
 
     // ==================== LLM配置管理模块 ====================
     const LLMConfig = {
@@ -4194,12 +4194,20 @@
 
     var __uoocReviseTried = {};
 
+    // 回补开关：默认开。控制台执行 localStorage.setItem('uooc_revise','0') 可关闭，
+    // 改成 '1' 重新打开。回补是 3.4.7 新增、实战样本最少的部分，出问题先关它。
+    function reviseEnabled() {
+        try { return localStorage.getItem('uooc_revise') !== '0'; }
+        catch (e) { return true; }
+    }
+
     function isVideoRow(node) {
         return Boolean(node && node.querySelector('[class*="video"], .video-icon, span.icon-video'));
     }
 
     // 旧版页面的回补：靠 .complete 类判断是否已看完
     function reviseOldVersion() {
+        if (!reviseEnabled()) return false;
         var rows = Array.prototype.slice.call(document.querySelectorAll('.basic'));
         if (!rows.length) return false;
         for (var i = 0; i < rows.length; i++) {
@@ -4242,6 +4250,7 @@
 
     function reviseNewCourse() {
         if (!isNewCatalog()) return false;
+        if (!reviseEnabled()) return false;
         var seen = loadSeenMap();
         var items = itemsIn(document);   // 只扫当前 DOM 里已经渲染出来的节点
         for (var i = 0; i < items.length; i++) {
@@ -4766,7 +4775,7 @@
         var rate = document.getElementById('rate');
         var pro = window.__uoocStallProbe;
         var out = {
-            '版本': '3.4.7-plus',
+            '版本': '3.4.8-plus',
             '地址': location.href,
             '视频元素': v ? '有' : '没有',
             'videojs': typeof window.videojs === 'function' ? '有' : '没有',
