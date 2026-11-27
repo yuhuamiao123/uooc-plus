@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UOOC 助手 Plus",
-  "version": "3.4.9",
+  "version": "3.4.11",
   "description": "优课联盟课程辅助：2倍速 / 静音 / 自动连播（适配 2026 新版学习页）/ 弹题自动作答 / AI答题 / 进度统计 / 视频卡死告警",
   "content_scripts": [
     {
