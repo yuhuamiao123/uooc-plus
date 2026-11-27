@@ -82,7 +82,7 @@
         } catch (e) { }
     }
 
-    showDebugBanner('[UOOC助手] v3.4.11 已加载 — 查看控制台获取详情');
+    showDebugBanner('[UOOC助手] v3.4.12 已加载 — 查看控制台获取详情');
 
     // ==================== LLM配置管理模块 ====================
     const LLMConfig = {
@@ -4215,23 +4215,49 @@
     }
     window.__uoocDump = dumpNewCatalog;
 
-    // 自愈：停在「进入 X，请选择学习资源」这种空态上（有目录、没播放器、没 active 项）时，
-    // 主动往下推一次。换章被中断、刷新后落回空页、点开节点却没选资源，都靠它接上。
+    // 自愈：停在空态上（有目录、没播放器、没当前项）时主动往下推一次。
+    // 换章被中断、刷新后落回空页、点开节点却没选资源，都靠它接上。
+    // 新版和老版都要管 —— 刷新后不会自己"续上"连播，这是最大的一处断点。
     if (!window.__uoocIdleKick) {
         window.__uoocIdleKick = setInterval(function () {
             try {
-                if (!isNewCatalog()) return;
                 var cont = document.getElementById('continue');
                 if (!cont || !cont.checked) return;
                 if (getCurrentVideo()) return;
-                if (activeItem()) return;
                 if (isNavPending()) return;
+                if (isQuizPage()) return;              // 在测验页别乱推
+
                 var now = Date.now();
                 if (window.__uoocLastForwardClick && now - window.__uoocLastForwardClick < 8000) return;
                 if (window.__uoocIdleKickAt && now - window.__uoocIdleKickAt < 15000) return;
+
+                if (isNewCatalog()) {
+                    if (activeItem()) return;
+                    window.__uoocIdleKickAt = now;
+                    console.log('[UOOC助手] 连播(新版): 页面停在空态，主动往下推一次');
+                    advanceNewCourse();
+                    return;
+                }
+
+                // 旧版：没有播放器、目录还在、也没有 active 行 → 点第一个没打勾的视频
+                var rows = document.querySelectorAll('.basic');
+                if (!rows.length) return;
+                if (document.querySelector('.basic.active')) return;
                 window.__uoocIdleKickAt = now;
-                console.log('[UOOC助手] 连播(新版): 页面停在空态，主动往下推一次');
-                advanceNewCourse();
+                console.log('[UOOC助手] 连播(旧版): 页面停在空态，主动往下推一次');
+                for (var i = 0; i < rows.length; i++) {
+                    var r = rows[i];
+                    if (r.classList.contains('complete')) continue;
+                    var ng = r.getAttribute('ng-click') || '';
+                    if (ng.indexOf('goSource') < 0) continue;
+                    if (!isVideoRow(r)) continue;
+                    var label = (r.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+                    console.log('[UOOC助手] 连播(旧版): 从第一个没看完的开始 → ' + label);
+                    window.__uoocLastForwardClick = now;
+                    try { r.click(); } catch (e) { }
+                    videoPulse();
+                    return;
+                }
             } catch (e) { }
         }, 5000);
     }
@@ -4824,7 +4850,7 @@
         var rate = document.getElementById('rate');
         var pro = window.__uoocStallProbe;
         var out = {
-            '版本': '3.4.11-plus',
+            '版本': '3.4.12-plus',
             '地址': location.href,
             '视频元素': v ? '有' : '没有',
             'videojs': typeof window.videojs === 'function' ? '有' : '没有',
