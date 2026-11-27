@@ -57,7 +57,31 @@
         console.log('[UOOC助手] ' + msg);
     }
 
-    showDebugBanner('[UOOC助手] v3.4.8 已加载 — 查看控制台获取详情');
+    // 需要人一直看着的提示用常驻横幅，不用 5 秒就消失的 toast。
+    // 主要用在"弹阿里云智能验证、必须手动拖滑块"这种必须本人处理的节点上。
+    function uoocStickyTip(text) {
+        try {
+            var el = document.getElementById('uooc-sticky-tip');
+            if (el) { el.textContent = text; return; }
+            el = document.createElement('div');
+            el.id = 'uooc-sticky-tip';
+            el.textContent = text;
+            el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
+                'background:#ef6c00;color:#fff;font:14px/1.7 -apple-system,"Microsoft YaHei",sans-serif;' +
+                'padding:10px 16px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.3)';
+            (document.body || document.documentElement).appendChild(el);
+        } catch (e) { }
+        console.log('[UOOC助手] ' + text);
+    }
+
+    function uoocClearSticky() {
+        try {
+            var el = document.getElementById('uooc-sticky-tip');
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        } catch (e) { }
+    }
+
+    showDebugBanner('[UOOC助手] v3.4.9 已加载 — 查看控制台获取详情');
 
     // ==================== LLM配置管理模块 ====================
     const LLMConfig = {
@@ -1394,6 +1418,7 @@
                     if (!liveDoc) {
                         clearInterval(submitWatch);
                         window.__uoocExamSubmitted = true;
+                        uoocClearSticky();
                         console.log('[UOOC助手-AI] ✅ 答题页已关闭，视为提交完成');
                         return;
                     }
@@ -1426,6 +1451,8 @@
                                 GM_notification({ text: '提交试卷弹出智能验证，请到页面手动完成验证', title: 'UOOC 助手' });
                             } catch (e) {}
                             if (!window.__uoocSilentAnswer) uoocToast('提交试卷时弹出了智能验证：请在页面上手动完成，完成后脚本会自动继续', 'warn');
+                            // 常驻横幅：不管是不是静默模式都要让人看见，否则没人知道卡在哪
+                            uoocStickyTip('⚠️ 提交试卷需要你手动完成阿里云智能验证：勾选复选框 → 拖滑块 → 点「提交」。完成后脚本会自动继续连播。');
                         }
                         return; // 等人工解验证
                     }
@@ -1433,6 +1460,7 @@
                     if (!findButtonByText(liveDoc, '提交试卷')) {
                         clearInterval(submitWatch);
                         window.__uoocExamSubmitted = true;
+                        uoocClearSticky();
                         console.log('[UOOC助手-AI] ✅ 试卷已提交');
                         return;
                     }
@@ -2844,7 +2872,8 @@
                 return;
             }
             // 提交已在 autoAnswerQuiz 内部完成 (静默模式强制自动提交) — 这里等提交完成标志
-            var waitTries = 75; // 最长约 2.5 分钟
+            // 人工验证可能要拖好几次滑块，给足 10 分钟
+            var waitTries = 300; // 300 × 2s = 10 分钟
             var waitTimer = setInterval(function() {
                 waitTries--;
                 if (window.__uoocExamSubmitted) {
@@ -4775,7 +4804,7 @@
         var rate = document.getElementById('rate');
         var pro = window.__uoocStallProbe;
         var out = {
-            '版本': '3.4.8-plus',
+            '版本': '3.4.9-plus',
             '地址': location.href,
             '视频元素': v ? '有' : '没有',
             'videojs': typeof window.videojs === 'function' ? '有' : '没有',
