@@ -68,7 +68,8 @@
             el.textContent = text;
             el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;' +
                 'background:#ef6c00;color:#fff;font:14px/1.7 -apple-system,"Microsoft YaHei",sans-serif;' +
-                'padding:10px 16px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.3)';
+                'padding:10px 16px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.3);' +
+                'pointer-events:none';
             (document.body || document.documentElement).appendChild(el);
         } catch (e) { }
         console.log('[UOOC助手] ' + text);
@@ -81,7 +82,7 @@
         } catch (e) { }
     }
 
-    showDebugBanner('[UOOC助手] v3.4.9 已加载 — 查看控制台获取详情');
+    showDebugBanner('[UOOC助手] v3.4.11 已加载 — 查看控制台获取详情');
 
     // ==================== LLM配置管理模块 ====================
     const LLMConfig = {
@@ -2887,9 +2888,15 @@
                     }, 6000);
                 } else if (waitTries <= 0) {
                     clearInterval(waitTimer);
-                    console.log('[UOOC助手] 等待自动提交超时，请你手动提交；连播停止');
+                    // 超时不等于放弃：验证过不去 / 提交没成功时，硬停在测验页只会让整晚白跑。
+                    // 先清状态往后走，没提交的测验留给"回补"或人工补。
+                    console.log('[UOOC助手] 等待自动提交超时（10 分钟）。测验可能没交上，先继续往后走，需要的话手动补交');
+                    window.__uoocExamSubmitted = true;
                     window.__uoocSilentAnswer = false;
                     window.__uoocNavPending = false;
+                    window.__uoocLastForwardClick = Date.now();
+                    uoocClearSticky();
+                    setTimeout(function () { findNextVideo(); }, 1500);
                 }
             }, 2000);
         }).catch(function(e) {
@@ -2901,6 +2908,19 @@
             window.__uoocNavPending = false;
         });
     }
+
+    // 手动跳过当前测验：验证过不去 / 卡在提交弹窗时，清掉等待状态直接继续连播。
+    // 控制台执行 __uoocSkipQuiz()
+    window.__uoocSkipQuiz = function () {
+        window.__uoocExamSubmitted = true;
+        window.__uoocNavPending = false;
+        window.__uoocAnswerBusy = false;
+        window.__uoocSilentAnswer = false;
+        window.__uoocLastForwardClick = 0;
+        uoocClearSticky();
+        console.log('[UOOC助手] 已跳过当前测验的等待状态，1 秒后继续往后连播');
+        setTimeout(function () { findNextVideo(); }, 1000);
+    };
 
     // 应用设置到视频元素 (2倍速/静音/播放) — 动态获取当前视频 (SPA兼容)
     function applyVideoSettings() {
@@ -4804,7 +4824,7 @@
         var rate = document.getElementById('rate');
         var pro = window.__uoocStallProbe;
         var out = {
-            '版本': '3.4.9-plus',
+            '版本': '3.4.11-plus',
             '地址': location.href,
             '视频元素': v ? '有' : '没有',
             'videojs': typeof window.videojs === 'function' ? '有' : '没有',
